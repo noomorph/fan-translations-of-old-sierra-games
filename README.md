@@ -1,6 +1,6 @@
 # Fan translations of old Sierra Games
 
-* `qfg/` - Quest For Glory I (EGA)
+* `qfg/` - Quest For Glory I (VGA)
 
 ## Disclaimer
 
