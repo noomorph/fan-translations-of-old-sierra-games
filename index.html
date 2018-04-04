@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>QFG1 Transifex2MSG</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <style>
+        body, button, input { font: normal normal normal 18px/1.5em sans-serif; }
+        div { padding: 1em; margin: 1em; }
+        input { width: 30em; }
+    </style>
+    <script src="js/loader.js"></script>
+</head>
+<body>
+<div>
+    <h1>QFG1-HE downloader</h1>
+</div>
+
+<div>
+    <label>Put your transifex token here:</label>
+    <input id="TRANSIFEX_TOKEN" type="text" placeholder="1/0123456789012345678901234567890123456789"></input>
+</div>
+
+<div>
+    <label>Filename to download:</label>
+    <input id="FILE_MASK" type="text" placeholder="1.en.json"></input>
+</div>
+
+<div>
+    <input id="ORGANIZATION_NAME" type="hidden" value="old-quests-fan-translations"></input>
+    <input id="PROJECT_NAME" type="hidden" value="quest-for-glory-i"></input>
+    <input id="TARGET_LANG" type="hidden" value="he"></input>
+    <button id="DOWNLOAD" disabled="disabled" onclick="download()">Download *.MSG as ZIP</button>
+</div>
+</body>
+</html>
