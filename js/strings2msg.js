@@ -34,6 +34,20 @@ var strings2msg = (function () {
         };
     }
 
+    function toWindows1255(str, charIndex) {
+        let code = str.charCodeAt(charIndex);
+
+        if (code >= 1488 && code <= 1514) {
+            code -= 1264;
+        } else if (code > 127) {
+            throw new Error(`crashed at non-ASCII character at position ${charIndex}: ${JSON.stringify(str)}`);
+        }
+
+        return (code & 0xFF);
+    }
+
+    const IS_HEBREW = new RegExp('[\u05d0-\u05ea]');
+
     function create_resource(lines) {
         const output = [
             0x8F, 0x00, 0x0C, 0x0D, 0x00, 0x00,
@@ -60,10 +74,13 @@ var strings2msg = (function () {
             writeUint8(output,  offset + 8, line.unknown2);
             writeUint8(output,  offset + 9, line.unknown3);
 
-            const L = line.content.length;
+            const content = IS_HEBREW.test(line.content)
+                ? line.content.split('').reverse().join('')
+                : line.content;
+
+            const L = content.length;
             for (let j = 0; j < L; j++) {
-                const code = line.content.charCodeAt(j) & 0xFF;
-                output[s_offset + j] = code;
+                output[s_offset + j] = toWindows1255(content, j);
             }
             output[s_offset + L] = 0;
 
