@@ -14,6 +14,7 @@ program
   .option('-i, --input-font <font.ttf>', 'Font file')
   .option('-s, --point-size [pointSize]', 'Point size', '14')
   .option('-o, --out-file [out.fon]', 'Output file name', 'out.fon')
+  .option('--single-thread', 'Run everything in single thread')
   .parse(process.argv);
 
 if (!fs.existsSync(program.inputFont)) {
@@ -59,7 +60,10 @@ function generateSingleGlyph(charCode, unicodeCharCode) {
   });
 
   return new Promise((resolve, reject) => {
-    handle.on('close', (code) => code ? resolve(null) : resolve(glyph));
+    handle.on('close', (code) => {
+      console.log('generated glyph with charCode =', charCode, 'unicode pos =', unicodeCharCode);
+      resolve(code ? null : glyph);
+    });
   });
 }
 
@@ -109,8 +113,33 @@ function add_word(buf, n) {
   buf.push((n & 0xFF00) >> 8);
 }
 
+function isGlyphBroken(g) {
+  return g == null || g.width > 60 || g.height > 100;
+}
+
+function fixGlyph(g) {
+  return isGlyphBroken(g) ? generateBlankGlyph() : g;
+}
+
+async function produceGlyphsArray() {
+  const iterable = generateGlyphs();
+
+  if (program.singleThread) {
+    const glyphs = [];
+
+    for (const op of iterable) {
+      glyphs.push(fixGlyph(await op));
+    }
+
+    return glyphs;
+  }
+
+  const glyphs = await Promise.all([...iterable]);
+  return glyphs.map(fixGlyph);
+}
+
 async function main() {
-  const glyphs = (await Promise.all([...generateGlyphs()])).map(g => g == null || g.width > 60 || g.height > 100 ? generateBlankGlyph() : g);
+  const glyphs = await produceGlyphsArray();
   const lineHeight = _.max(glyphs.map(g => g.height));
 
   debugger;
@@ -118,7 +147,7 @@ async function main() {
 
   add_word(buf, 0x87);
   add_word(buf, 0);
-  add_word(buf, 255); // TODO: check
+  add_word(buf, glyphs.length);
   add_word(buf, lineHeight);
 
   let bitmasksOffset = 8 + glyphs.length * 2;
