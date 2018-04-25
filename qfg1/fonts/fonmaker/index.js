@@ -71,12 +71,14 @@ function generateBlankGlyph() {
   return {
     width: 1,
     height: 1,
-    data: [0],
+    data: [1],
   };
 }
 
 function *generateGlyphs() {
-  for (let charIndex = 0; charIndex < win1255.length; charIndex++) {
+  const len = win1255.length
+
+  for (let charIndex = 0; charIndex < len; charIndex++) {
     const code = win1255[charIndex][0];
 
     if (code != null) {
@@ -90,19 +92,19 @@ function *generateGlyphs() {
 
 function bitify8(chunk, index) {
   return (
-    (chunk[index + 0] >> 0) |
-    (chunk[index + 1] >> 1) |
-    (chunk[index + 2] >> 2) |
-    (chunk[index + 3] >> 3) |
-    (chunk[index + 4] >> 4) |
-    (chunk[index + 5] >> 5) |
-    (chunk[index + 6] >> 6) |
-    (chunk[index + 7] >> 7)
+    ((1 & chunk[index + 0]) << 7) |
+    ((1 & chunk[index + 1]) << 6) |
+    ((1 & chunk[index + 2]) << 5) |
+    ((1 & chunk[index + 3]) << 4) |
+    ((1 & chunk[index + 4]) << 3) |
+    ((1 & chunk[index + 5]) << 2) |
+    ((1 & chunk[index + 6]) << 1) |
+    ((1 & chunk[index + 7]) << 0)
   );
 }
 
 function bitify(buf, chunk) {
-  const n = chunk.length >> 3;
+  const n = chunk.length;
   for (let i = 0; i < n; i += 8) {
     buf.push(bitify8(chunk, i));
   }
@@ -150,17 +152,17 @@ async function main() {
   add_word(buf, glyphs.length);
   add_word(buf, lineHeight);
 
-  let bitmasksOffset = 8 + glyphs.length * 2;
+  let bitmasksOffset = 6 + glyphs.length * 2;
 
   for (const glyph of glyphs) {
     add_word(buf, bitmasksOffset);
-    const frameSize = 4 + Math.ceil(glyph.width / 8) * glyph.height;
+    const frameSize = 2 + Math.ceil(glyph.width / 8) * glyph.height;
     bitmasksOffset += frameSize;
   }
 
   for (const glyph of glyphs) {
-    buf.push(glyph.height & 0xFF);
     buf.push(glyph.width & 0xFF);
+    buf.push(glyph.height & 0xFF);
 
     for (const chunk of _.chunk(glyph.data, glyph.width)) {
       while (chunk.length % 8 !== 0) {
