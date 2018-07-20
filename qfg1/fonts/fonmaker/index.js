@@ -27,8 +27,6 @@ if (!program.inputFont.toLowerCase().endsWith('.ttf')) {
 }
 
 function generateSingleGlyph(charCode, unicodeCharCode) {
-  const outFile = `/tmp/${charCode}.txt`;
-
   const args = [
     '-compress', 'None',
     '-dither', 'FloydSteinberg',
