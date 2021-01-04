@@ -1,39 +1,50 @@
-const fs = require('fs');
+const _ = require('lodash');
+const fs = require('fs-extra');
 const path = require('path');
+const fetch = require('node-fetch');
+const { writeUint8, writeUint16 } = require('./utils/binary');
 
-function writeUint8(buf, offset, value) {
-  buf[offset] = value & 0xFF;
-}
+const CACHE_LOCATION = '.cache/resources.tsv';
+const GSHEETS_URL =
+  `https://docs.google.com/spreadsheets/d/e/2PACX-1vSrKlVjKAPwNaZ7xutOPWFlzOLpb7j3bUe8UxLWqCeeAtt_vAKki_28W9PJ3j5yVaUhax8oRk7kFW_P/pub?output=tsv`;
 
-function writeUint16(buf, offset, value) {
-  writeUint8(buf, offset, value);
-  writeUint8(buf, offset + 1, (value & 0xFF00) >> 8);
-}
+function buildParserFunction(header) {
+  const columns = header.split('\t');
 
-function parse_ff(str, index) {
-  const ff = str.slice(index, index + 2);
-  return parseInt(ff, 16);
-}
+  return (line) => {
+    const record = {};
+    const cells = line.split('\t');
+    const n = cells.length;
 
-function parseKey(key) {
-  const [resource, index, data] = key.split('_');
-  const [
-    noun, verb, condition, sequence, talker,
-    unknown1, unknown2, unknown3
-  ] = [0, 2, 4, 6, 8, 10, 12, 14].map(offset => parse_ff(data, offset));
+    for (let i = 0; i < n; i++) {
+      const value = cells[i];
+      record[columns[i]] = Number.isNaN(+value) ? value : +value;
+    }
 
-  return {
-    resource,
-    index: +index,
-    noun,
-    verb,
-    condition,
-    sequence,
-    talker,
-    unknown1,
-    unknown2,
-    unknown3,
+    return record;
   };
+}
+
+async function fetchTranslations({ useCache } = {}) {
+  await fs.mkdirp('.cache');
+
+  if (!useCache || !(await fs.exists(CACHE_LOCATION))) {
+    const response = await fetch(GSHEETS_URL);
+    await fs.writeFile(CACHE_LOCATION, await response.text())
+  }
+
+  const contents = await fs.readFile(CACHE_LOCATION, 'utf8');
+  let parseLine;
+
+  return _.chain(contents)
+    .trimEnd()
+    .split('\r\n')
+    .thru(([header, ...lines]) => {
+      parseLine = buildParserFunction(header);
+      return lines;
+    })
+    .map((line) => parseLine(line))
+    .value();
 }
 
 function create_resource(lines) {
@@ -65,52 +76,60 @@ function create_resource(lines) {
 
     const L = line.content.length;
     for (let j = 0; j < L; j++) {
-      const code = line.content.charCodeAt(j) & 0xFF;
-      output[s_offset + j] = code;
+      const code = line.content.charCodeAt(j);
+      if (code >= 1488) {
+        output[s_offset + j] = (code & 0xFF) + 16;
+      } else {
+        output[s_offset + j] = code & 0xFF;
+      }
     }
     output[s_offset + L] = 0;
 
     s_offset += L + 1;
   }
 
-  return new Buffer(output);
+  return Buffer.from(output);
 }
 
-function main(argv) {
+async function main(argv) {
+  const translations = await fetchTranslations({ useCache: true });
   const resources = {};
 
-  for (const arg of [].slice.call(argv, 2)) {
-    const filename = './' + arg;
-    const json = JSON.parse(fs.readFileSync(filename, 'utf8'));
+  for (const item of translations) {
+    const {
+      resource,
+      index,
+      noun,
+      verb,
+      condition,
+      sequence,
+      talker,
+      unknown1,
+      unknown2,
+      unknown3,
+      ...strings
+    } = item;
 
-    for (const key in json) {
-      if (json.hasOwnProperty(key)) {
-        const value = json[key];
-        const entry = parseKey(key);
-
-        const lines = (resources[entry.resource] = resources[entry.resource] || []);
-        lines[entry.index] = {
-          noun: entry.noun,
-          verb: entry.verb,
-          condition: entry.condition,
-          sequence: entry.sequence,
-          talker: entry.talker,
-          unknown1: entry.unknown1,
-          unknown2: entry.unknown2,
-          unknown3: entry.unknown3,
-          content: value,
-        };
-      }
-    }
+    resources[resource] = resources[resource] || [];
+    resources[resource][index] = {
+      noun,
+      verb,
+      condition,
+      sequence,
+      talker,
+      unknown1,
+      unknown2,
+      unknown3,
+      content: strings.he || strings.en,
+    };
   }
 
-  for (const resource in resources) {
-      if (resources.hasOwnProperty(resource)) {
-        const res = resources[resource];
-        const binary = create_resource(res);
+  await fs.mkdirp('./msg');
+  for (const resource of Object.keys(resources)) {
+    const data = resources[resource];
+    const binary = create_resource(data);
 
-        fs.writeFileSync(`./${resource}.msg`, binary);
-      }
+    await fs.writeFile(`./msg/${resource}.msg`, binary);
   }
 }
 
