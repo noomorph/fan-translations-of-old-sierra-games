@@ -4,6 +4,7 @@
   "description": "",
   "main": "import_from_transifex.js",
   "scripts": {
+    "build": "node to_msg.js && zip -r qfg1vga_he_`date '+%Y%m%d%H%M%S'`.zip qfg1vga_he",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

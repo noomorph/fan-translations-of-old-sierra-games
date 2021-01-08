@@ -124,12 +124,16 @@ async function main(argv) {
     };
   }
 
-  await fs.mkdirp('./msg');
+  await fs.mkdirp('./qfg1vga_he/PATCHES');
+  await fs.writeFile('./qfg1vga_he/HEBREW', '');
+  await fs.copyFile('../fonts/123.fon', './qfg1vga_he/PATCHES/123.FON');
+  await fs.copyFile('../fonts/300.fon', './qfg1vga_he/PATCHES/300.FON');
+
   for (const resource of Object.keys(resources)) {
     const data = resources[resource];
     const binary = create_resource(data);
 
-    await fs.writeFile(`./msg/${resource}.msg`, binary);
+    await fs.writeFile(`./qfg1vga_he/PATCHES/${resource}.MSG`, binary);
   }
 }
 
